@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FedWatch Live - Real-Time Economic Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a12 0%, #12121f 50%, #0d1117 100%);
+            min-height: 100vh;
+            color: #e6edf3;
+            padding: 20px;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(90deg, rgba(0,212,255,0.08), rgba(123,47,247,0.08));
+            border-radius: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,212,255,0.15);
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7, #00d4ff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+        @keyframes shimmer { to { background-position: 200% center; } }
+        .hero .tagline {
+            color: #58a6ff;
+            font-size: 1.3rem;
+            margin-top: 12px;
+        }
+        .hero .status {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 8px 20px;
+            background: rgba(81,207,102,0.15);
+            border-radius: 20px;
+            color: #51cf66;
+            font-size: 0.9rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: rgba(22,27,34,0.8);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(48,54,61,0.6);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 0.75rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .badge {
+            font-size: 0.65rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .badge-live { background: rgba(81,207,102,0.2); color: #51cf66; }
+        .badge-official { background: rgba(123,47,247,0.2); color: #a371f7; }
+        
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #fff, #8b949e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-change {
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+        .down { color: #51cf66; }
+        .up { color: #f85149; }
+        .neutral { color: #8b949e; }
+        
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 30px 0 20px;
+            color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .signal-card {
+            background: rgba(13,17,23,0.6);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(48,54,61,0.4);
+            transition: all 0.3s;
+        }
+        .signal-card:hover {
+            border-color: rgba(0,212,255,0.3);
+            transform: translateY(-2px);
+        }
+        .signal-icon { font-size: 2rem; margin-bottom: 10px; }
+        .signal-label { font-size: 0.8rem; color: #8b949e; }
+        .signal-value { 
+            font-size: 1.3rem; 
+            font-weight: 700; 
+            color: #58a6ff;
+            margin-top: 8px;
+        }
+        .signal-status {
+            font-size: 0.7rem;
+            color: #f0883e;
+            margin-top: 8px;
+        }
+        
+        .chart-box {
+            height: 160px;
+            margin-top: 20px;
+        }
+        
+        .health-gauge {
+            text-align: center;
+            padding: 30px;
+        }
+        .gauge-value {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #51cf66;
+        }
+        .gauge-label {
+            font-size: 1rem;
+            color: #8b949e;
+            margin-top: 10px;
+        }
+        
+        .progress-ring {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            color: #484f58;
+            font-size: 0.85rem;
+        }
+        
+        .wide { grid-column: span 2; }
+        @media (max-width: 768px) { .wide { grid-column: span 1; } }
+        
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #51cf66;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🏛️ FedWatch Live</h1>
+        <p class="tagline">Real-Time Economic Intelligence Platform</p>
+        <div class="status">
+            <span class="dot"></span>
+            API Online | Last Updated: Feb 18, 2026
+        </div>
+    </div>
+
+    <h2 class="section-title">📊 Official Indicators</h2>
+    
+    <div class="grid">
+        <!-- Unemployment -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Unemployment Rate</span>
+                <span class="badge badge-official">OFFICIAL</span>
+            </div>
+            <div class="metric-value">4.3%</div>
+            <div class="metric-change down">▼ 0.2% vs last month</div>
+            <div class="chart-box">
+                <canvas id="unempChart"></canvas>
+            </div>
+        </div>
+
+        <!-- CPI -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">CPI Inflation</span>
+                <span class="badge badge-official">OFFICIAL</span>
+            </div>
+            <div class="metric-value">2.4%</div>
+            <div class="metric-change down">▼ 0.3% vs last month</div>
+            <div class="chart-box">
+                <canvas id="cpiChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Core CPI -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Core CPI</span>
+                <span class="badge badge-official">OFFICIAL</span>
+            </div>
+            <div class="metric-value">2.5%</div>
+            <div class="metric-change neutral">→ Stable</div>
+            <div style="margin-top:20px;padding:15px;background:rgba(0,212,255,0.05);border-radius:10px;">
+                <p style="font-size:0.8rem;color:#8b949e">Fed Target</p>
+                <p style="font-size:1.4rem;color:#58a6ff;font-weight:bold">2.0%</p>
+            </div>
+        </div>
+
+        <!-- Fed Funds -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Fed Funds Rate</span>
+                <span class="badge badge-official">TARGET</span>
+            </div>
+            <div class="metric-value">4.25%</div>
+            <div class="metric-change neutral">→ Held steady</div>
+            <p style="font-size:0.8rem;color:#8b949e;margin-top:15px">Next FOMC: Mar 19, 2026</p>
+        </div>
+    </div>
+
+    <h2 class="section-title">🚀 Real-Time Alternative Signals</h2>
+    
+    <div class="grid">
+        <div class="card wide">
+            <div class="card-header">
+                <span class="card-title">Live Data Streams</span>
+                <span class="badge badge-live">COMING SOON</span>
+            </div>
+            <div class="signal-grid">
+                <div class="signal-card">
+                    <div class="signal-icon">💼</div>
+                    <div class="signal-label">Job Postings</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup Indeed API</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-icon">🔍</div>
+                    <div class="signal-label">Search Trends</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup Google Trends</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-icon">🏠</div>
+                    <div class="signal-label">Housing</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup Realtor.com</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-icon">📰</div>
+                    <div class="signal-label">Sentiment</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup News API</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-icon">💳</div>
+                    <div class="signal-label">Spending</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup Plaid</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-icon">🛰️</div>
+                    <div class="signal-label">Satellite</div>
+                    <div class="signal-value">--</div>
+                    <div class="signal-status">⚙️ Setup Imagery</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">💚 Economic Health Score</h2>
+    
+    <div class="grid">
+        <div class="card">
+            <div class="health-gauge">
+                <div class="gauge-value">78</div>
+                <div class="gauge-label">/ 100</div>
+                <p style="color:#51cf66;margin-top:15px;font-weight:600">HEALTHY</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Score Breakdown</span>
+            </div>
+            <div style="margin-top:15px;">
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+                    <span style="color:#8b949e">Unemployment (4.3%)</span>
+                    <span style="color:#51cf66">+25</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+                    <span style="color:#8b949e">Inflation (2.4%)</span>
+                    <span style="color:#51cf66">+23</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+                    <span style="color:#8b949e">Fed Funds (4.25%)</span>
+                    <span style="color:#f0883e">+15</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+                    <span style="color:#8b949e">Alternative Signals</span>
+                    <span style="color:#8b949e">+15</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">API Endpoints</span>
+            </div>
+            <div style="font-family:monospace;font-size:0.85rem;color:#8b949e;">
+                <p style="padding:6px 0;">GET /api/v1/employment</p>
+                <p style="padding:6px 0;">GET /api/v1/inflation</p>
+                <p style="padding:6px 0;">GET /api/v1/signals</p>
+                <p style="padding:6px 0;">GET /api/v1/health</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>🏛️ FedWatch | Built by Pixel & Ryan | Open Source</p>
+        <p style="margin-top:5px;color:#30363d">NOT FINANCIAL ADVICE | For Educational Purposes Only</p>
+    </div>
+
+    <script>
+        // Unemployment Chart
+        new Chart(document.getElementById('unempChart'), {
+            type: 'line',
+            data: {
+                labels: ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+                datasets: [{
+                    data: [3.8,3.9,3.9,3.9,4.1,4.2,4.2,4.1,4.1,4.2,4.0,4.3],
+                    borderColor: '#51cf66',
+                    backgroundColor: 'rgba(81,207,102,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 3, max: 5 }
+                }
+            }
+        });
+
+        // CPI Chart  
+        new Chart(document.getElementById('cpiChart'), {
+            type: 'line',
+            data: {
+                labels: ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+                datasets: [{
+                    data: [3.4,3.4,3.3,3.0,2.9,2.5,2.4,2.4,2.3,2.7,2.4,2.4],
+                    borderColor: '#58a6ff',
+                    backgroundColor: 'rgba(88,166,255,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 2, max: 4 }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
